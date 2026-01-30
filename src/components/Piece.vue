@@ -57,7 +57,7 @@ onUpdated(() => {
 watch(
     () => {
         if (Object.keys(promotionInfo).length > 0 && promotionDropdown.value) {
-            console.log(promotionInfo);
+            // console.log(promotionInfo);
             
             promotionDropdown.value.focus();
         }

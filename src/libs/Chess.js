@@ -41,7 +41,7 @@ export default class Chess {
         // this.board[0][6] = new Knight(-3, 0, 6);
         // this.board[7][1] = new Knight(3, 7, 1);
         // this.board[7][6] = new Knight(3, 7, 6);
-        // this.board[0][4] = new Knight(this, -3, 0, 4);
+        // this.board[0][3] = new Knight(this, -3, 0, 3);
         // this.board[7][3] = new Knight(this, 3, 7, 3);
 
         // this.board[0][2] = new Bishop(-4, 0, 2);
@@ -67,6 +67,7 @@ export default class Chess {
         // this.board[7][3] = new Queen(9, 7, 3);
 
         // this.board[7][4] = new King(this, 1000, 7, 4);
+        this.board[0][2] = this.createPieceByValue(-1000, 0, 2);
         // this.board[0][4] = new King(this, -1000, 0, 4);
     }
 
@@ -80,7 +81,7 @@ export default class Chess {
 
     moveCurrentPiece(targetRow, targetCol) {
         // проверка очередности хода
-        // if (!this.checkingTurnOrder()) return { success: false };    
+        if (!this.checkingTurnOrder()) return { success: false };
         // рокировка
         if (this.currentPiece instanceof King) {
             const diffCol = targetCol - this.currentPiece.colIndex;
@@ -116,6 +117,7 @@ export default class Chess {
             }
         }
 
+        const capturedPiece = this.board[targetRow][targetCol];
         const prevRow = this.currentPiece.rowIndex;
         const prevCol = this.currentPiece.colIndex;
 
@@ -149,27 +151,17 @@ export default class Chess {
             };
         }
 
-        // проверка на мат
-        if (this.isCheck(this.whoseTurn * -1) && !this.hasAnyLegalMove(this.whoseTurn * -1)) {
-            // console.log('МАТ');
-
-        }
-        // проверка на пат
-        if (!this.isCheck(this.whoseTurn * -1) && !this.hasAnyLegalMove(this.whoseTurn * -1)) {
-            // console.log('ПАТ');
-
-        }
-
         let convertedPawn = null;
         // превращение пешки
         if (this.currentPiece instanceof Pawn) {
             const lastRow = this.currentPiece.value > 0 ? 0 : 7;
             if (lastRow === this.currentPiece.rowIndex) {
                 convertedPawn = {
+                    capturedPiece: capturedPiece ? capturedPiece : 0,
                     prevRowIndex: prevRow,
                     prevColIndex: prevCol,
                     rowIndex: this.currentPiece.rowIndex,
-                    colIndex: this.currentPiece.colIndex
+                    colIndex: this.currentPiece.colIndex,
                 }
                 return {
                     success: true,
@@ -196,6 +188,47 @@ export default class Chess {
             }
         }
 
+        // проверка на мат
+        if (this.isCheck(this.whoseTurn) && !this.hasAnyLegalMove(this.whoseTurn)) {
+            // console.log('МАТ');
+
+        }
+        // проверка на пат
+        if (!this.isCheck(this.whoseTurn) && !this.hasAnyLegalMove(this.whoseTurn)) {
+            // console.log('ПАТ');
+
+        }
+
+        return {
+            success: true,
+            check: this.isCheck(this.whoseTurn) ? this.whoseTurn : null,
+        };
+    }
+
+    // превращение пешки в фигуру
+    promotePawn({ rowIndex, colIndex }, value) {
+        const newPiece = this.createPieceByValue(value, rowIndex, colIndex);
+        this.board[rowIndex][colIndex] = newPiece;
+
+        // смена очередности хода
+        this.whoseTurn *= -1;
+
+        // сброс флага en passant у пешек после смены хода
+        for (const row of this.board) {
+            for (const piece of row) {
+                if (piece instanceof Pawn && Math.sign(piece.value) !== this.whoseTurn) {
+                    piece.enPassantFlag = false;
+                }
+            }
+        }
+
+        if (this.isCheck(this.whoseTurn) && !this.hasAnyLegalMove(this.whoseTurn)) {
+            // МАТ
+        }
+        if (!this.isCheck(this.whoseTurn) && !this.hasAnyLegalMove(this.whoseTurn)) {
+            // ПАТ
+        }
+
         return {
             success: true,
             check: this.isCheck(this.whoseTurn) ? this.whoseTurn : null,
@@ -203,12 +236,17 @@ export default class Chess {
     }
 
     // отмена хода если не выбрали фигуру при превращении пешки
-    declineMove(obj) {
-        const pawn = this.board[obj.rowIndex][obj.colIndex];
-        this.board[obj.rowIndex][obj.colIndex] = 0;
-        this.board[obj.prevRowIndex][obj.prevColIndex] = pawn;
-        pawn.rowIndex = obj.prevRowIndex;
-        pawn.colIndex = obj.prevColIndex;
+    declineMove({ capturedPiece, prevRowIndex, prevColIndex, rowIndex, colIndex }) {
+        const pawn = this.board[rowIndex][colIndex];
+
+        this.board[rowIndex][colIndex] = capturedPiece;
+        if (capturedPiece) {
+            capturedPiece.rowIndex = rowIndex;
+            capturedPiece.colIndex = colIndex;
+        }
+        this.board[prevRowIndex][prevColIndex] = pawn;
+        pawn.rowIndex = prevRowIndex;
+        pawn.colIndex = prevColIndex;
     }
 
     // проверка очередности хода
@@ -359,6 +397,18 @@ export default class Chess {
             }
         }
         return null;
+    }
+
+    // создать фигуру
+    createPieceByValue(value, row, col) {
+        switch (Math.abs(value)) {
+            case 9: return new Queen(this, value, row, col);
+            case 5: return new Rook(this, value, row, col);
+            case 4: return new Bishop(this, value, row, col);
+            case 3: return new Knight(this, value, row, col);
+            case 1000: return new King(this, value, row, col);
+            case 1: return new Pawn(this, value, row, col);
+        }
     }
 
     // проверка возможности рокировки

@@ -61,10 +61,18 @@ function onPutPiece(coords) {
 function onTurnPawn(value) {
     if (value === null) {
         chessInstance.declineMove(convertedPawn.value);
-        convertedPawn.value = {};
-        boardArr.value = chessInstance.getBoard();
     };
+    if (Number(value)) {
+        const result = chessInstance.promotePawn({
+            rowIndex: convertedPawn.value.rowIndex,
+            colIndex: convertedPawn.value.colIndex,
+        }, value);
 
+        check.value = result.check;
+    }
+
+    convertedPawn.value = {};
+    boardArr.value = chessInstance.getBoard();
 }
 
 function onClickOutsideDropdown(e) {
